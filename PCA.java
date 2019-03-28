@@ -1,3 +1,7 @@
+import com.sun.tools.javac.util.List;
+import java.util.*;
+import java.io.*;
+
 //Only function you need here is the pca method, call this on the finalized matrix with n=2 and it'll reduce it for you
 public class PCA{
 	public static double[][] transpose(double[][] matrix) {
@@ -188,7 +192,7 @@ public class PCA{
 			guess[i]=Math.random()*100;
 		}
 		double[] eigenvector=normalize(guess);
-		double eigenvalue=Math.random()*30;
+		double eigenvalue=start;
 		int iters=0;
 		while (close==false) {
 			assert length(eigenvector)==1;
@@ -211,7 +215,6 @@ public class PCA{
 						output[i][j]=0;
 					}
 				}
-				System.out.println("Couldn't find");
 				return output;
 			}
 		}
@@ -237,24 +240,18 @@ public class PCA{
 			for (int i=0;i<found;i++) {
 				if (Math.abs(eigen-output[i])<.01) {
 					novel=false;
-					System.out.println("Too close to:"+output[i]);
 				}
 			}
 			if (novel) {
 				output[found]=eigen;
 				vectors[found]=vector;
-				System.out.println("New Eigenvalue:");
-				System.out.println(eigen);
-				System.out.println(found);
 				found++;
+				System.out.println("Found "+found+" eigenvectors");
 				if (found>=m*.8) {
 					break;
 				}
 			}
 			else {
-				System.out.println("Found repeat");
-				System.out.println(eigen);
-				System.out.println(found);
 				start++;
 				if (start==m) {
 					start=0;
@@ -264,10 +261,77 @@ public class PCA{
 		vectors[m]=output;
 		return vectors;
 	}
+	
+	public static double[][] find_some_eigens(double[][] matrix, int n){
+		int m=matrix.length;
+		double[] output=new double[m];
+		double[] eigens=new double[n];
+		int found=0;
+		int start=0;
+		List<Double> start_vals=new ArrayList<Double>();
+		List<Double> eigen_list=new ArrayList<Double>();
+		double max_val=0;
+		double min_val=-1;
+		double min_dist_pos=Double.POSITIVE_INFINITY;
+		double min_dist_neg=-.5;
+		for (int i=0;i<m;i++) {
+			double val=matrix[i][i];
+			if (val>max_val) {
+				max_val=val;
+			}
+			if (val<min_dist_pos) {
+				min_dist_pos=val;
+			}
+			start_vals.add(val);
+		}
+		double[][] vectors=new double[m+1][m];
+		while (true) {
+			double[][] values=rayleigh(matrix,start_vals.get(start));
+			double[] vector=values[0];
+			double eigen=values[1][0];
+			boolean novel=true;
+			if (eigen<.001){
+				novel=false;
+			}
+			for (int i=0;i<found;i++) {
+				if (Math.abs(eigen-output[i])<.01) {
+					novel=false;
+				}
+			}
+			if (novel) {
+				eigens[found]=eigen;
+				eigen_list.add(eigen);
+				output[found]=eigen;
+				vectors[found]=vector;
+				found++;
+				System.out.println("Found "+found+" eigenvectors/values");
+				if (found==n) {
+					break;
+				}
+			}
+			else {
+				start++;
+				if (start==start_vals.size()) {
+					assert (false);
+					start=0;
+					max_val=1.1*max_val;
+					min_val=1.1*min_val;
+					min_dist_pos=.9*min_dist_pos;
+					min_dist_neg=.9*min_dist_neg;
+					start_vals.add(min_dist_pos);
+					start_vals.add(min_dist_neg);
+					start_vals.add(max_val);
+					start_vals.add(min_val);
+				}
+			}
+		}
+		vectors[m]=output;
+		return vectors;
+	}
 	public static double[][] make_eigenvalue_matrix(double[][] matrix,int n){
 		int m=matrix.length;
 		double[][] output=new double[n][m];
-		double[][] eigens=find_eigenvalues(matrix);
+		double[][] eigens=find_some_eigens(matrix,matrix.length);
 		double[] eigenvalues=eigens[m];
 		int[] used=new int[m];
 		for (int i=0;i<n;i++) {
